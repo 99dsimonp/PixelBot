@@ -86,6 +86,12 @@ def ColorToBool(r,b,g):
     TARGET_ATTACKING_PLAYER = is_set(intval, 15)
     return TARGET_IN_COMBAT, TARGET_IS_ENEMY, PLAYER_IS_DEAD, PLAYER_FREE_TALENT_POINTS, PLAYER_NEED_WATER, PLAYER_HAS_FOOD_BUFF, PLAYER_IN_FLIGHT, PLAYER_EATING, PLAYER_IN_COMBAT, TARGET_ATTACKING_PLAYER
 
+def DegToRad(degrees):
+    return degrees * math.pi / 180
+
+def RadToDeg(radians):
+    return radians * 180 / math.pi
+
 
 PIXEL_PLAYER_X_COORD = (8, 25)
 PIXEL_PLAYER_Y_COORD = (13, 25)
@@ -106,6 +112,7 @@ PIXEL_TARGET_NAMESECOND = (88, 25)
 PIXEL_TARGET_HEALTH_MAX = (93, 25)
 PIXEL_TARGET_HEALTH_CURR = (98, 25)
 start_time = time.time()
+
 
 
 sct = mss.mss()
@@ -165,6 +172,7 @@ def Turn(goal_radians): #https://math.stackexchange.com/questions/2062021/findin
     #TURN RIGHT (d) DECREASES ANGLE
     #TURNING LEFT (a) INCREASES ANGLE
     #1. Increase angle over 2pi and reach aim
+    print("New goal:" + str(goal_radians))
     if PLAYER_FACING > goal_radians and PLAYER_FACING > math.pi and (PLAYER_FACING + math.pi) % 2* math.pi > goal_radians:
         print("Facing 1")
         target = goal_radians + 2*math.pi
@@ -210,10 +218,18 @@ def Turn(goal_radians): #https://math.stackexchange.com/questions/2062021/findin
 
 
 def MoveTo(X, Y):
-    new_facing_direction = math.atan2( X - PLAYER_X_COORD, Y- PLAYER_Y_COORD) + math.pi
+    new_facing_direction = math.atan2(Y- PLAYER_Y_COORD, PLAYER_X_COORD - X )
+    #slope is the absolute direction to the next point from the player
+    new_facing_direction += math.pi # map to 0-2PI range
+    #Rotate by 90 degrees (so that 0 is up, not right)
+    new_facing_direction -= math.pi * 0.5
+    #Ensures that slope is not less than 0
     if new_facing_direction < 0:
-        #new_facing_direction = (2 *math.pi - new_facing_direction) % 2*math.pi
-        new_facing_direction = new_facing_direction + math.pi
+        new_facing_direction += math.pi *2
+    #Ensures slope is not greater than 2p
+    if new_facing_direction > math.pi*2:
+        new_facing_direction -= math.pi*2
+    
     Turn(new_facing_direction)
     placement_error = (max(PLAYER_X_COORD, X) - min(PLAYER_X_COORD, X)) + (max(PLAYER_Y_COORD, Y) - min(PLAYER_Y_COORD, Y))
     #placement_error = math.sqrt(math.pow(X-PLAYER_X_COORD - X,2) + math.pow(Y-PLAYER_CORPSE_Y_COORD,2))
@@ -229,7 +245,7 @@ def MoveTo(X, Y):
             pyautogui.keyUp('w')
             Turn(new_facing_direction)
             pyautogui.keyDown('w')
-        print(placement_error)
+        #print(placement_error)
     pyautogui.keyUp('w')
 
 # PIXELS WITH DATA WHEN WINDOWED MODE:
@@ -297,8 +313,8 @@ thread1.start()
 #while True:
 #1    print(str(PLAYER_RANGE))
 
-Fight()
-MoveTo(0.60922724,0.533741176)
+#Fight()
+MoveTo(0.50800329446793, 0.28960570693016)
 #Turn(4.73178)
 
 while True:
