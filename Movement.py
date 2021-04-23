@@ -49,6 +49,7 @@ unstuck = {
     "JUMP_DISTANCE": 0.028799
 }
 paused = False
+navigationActive = False
 
 
 class WalkingControl:
@@ -111,7 +112,8 @@ class TurningControl:
             self.turnTimeout.cancel()
             pyautogui.keyUp(self.turnKey)
 
-
+tc = TurningControl()
+wc = WalkingControl()
 
 
 
@@ -185,8 +187,7 @@ def Turn(goal_radians): #https://math.stackexchange.com/questions/2062021/findin
 
 #Accuracy = 'fine' or 'rough'
 def MoveTo(X, Y, accuracy, config=None):
-    tc = TurningControl()
-    wc = WalkingControl()
+
     wc.startWalking()
 
     if config is None:
@@ -236,8 +237,11 @@ def MoveTo(X, Y, accuracy, config=None):
 
 
 def FollowPath(path):
+    navigationActive = True
     for X,Y in path:
         MoveTo(X,Y, 'fine')
+    wc.stop()
+    navigationActive = False
 
 def recordMovement():
     f = open("path", "wb")

@@ -379,7 +379,8 @@ function DataToColor:CreateFrames(n)
     -- creating a new frame to check for open BOE and BOP windows
     local bindingCheckFrame = CreateFrame("Frame", "frame_bindingcheck", UIParent)
     -- 90 and 200 are the x and y offsets from the default "CENTER" position
-    bindingCheckFrame:SetPoint("CENTER", 90, 200)
+	-- POSITION DEPENDS ON RESOLUTION! Fullscreen 2560x1440 means pixel has to be shifted up from standard value.
+    bindingCheckFrame:SetPoint("CENTER", 90, 270)
     -- Frame height as 5px
     bindingCheckFrame:SetHeight(5)
     -- Frame width as 5px
@@ -417,9 +418,6 @@ function DataToColor:GetCurrentPlayerPosition(x)
 	else return posY
 	end
     -- Resets map to correct zone ... removed in 8.0.1, needs to be tested to see if zone auto update
-	--self:log("In func4")
-	
-	--self:log("In func5")
 end
 
 -- Base 2 converter for up to 24 boolean values to a single pixel square.
@@ -427,10 +425,10 @@ function DataToColor:Base2Converter()
     -- 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384
     return self:MakeIndexBase2(self:targetCombatStatus(), 0) + self:MakeIndexBase2(self:GetEnemyStatus(), 1) + self:MakeIndexBase2(self:deadOrAlive(), 2) +
     self:MakeIndexBase2(self:checkTalentPoints(), 3) + self:MakeIndexBase2(self:needWater(), 4) + self:MakeIndexBase2(self:GetBuffs("Food"), 5) +
-    self:MakeIndexBase2(self:GetBuffs("Frost Armor"), 6) + self:MakeIndexBase2(self:GetBuffs("Arcane Intellect"), 7) + self:MakeIndexBase2(self:GetBuffs("Ice Barrier"), 8) +
+    self:MakeIndexBase2(self:GetComboPoints(), 6) + self:MakeIndexBase2(self:GetBuffs("Stealth"), 7) + self:MakeIndexBase2(self:GetBuffs("Ice Barrier"), 8) +
     self:MakeIndexBase2(self:GetInventoryBroken(), 9) + self:MakeIndexBase2(self:IsPlayerFlying(), 10) + self:MakeIndexBase2(self:needFood(), 11) +
-    self:MakeIndexBase2(self:GetBuffs("Evocation"), 12) + self:MakeIndexBase2(self:GetBuffs("Drink"), 13) + self:MakeIndexBase2(self:playerCombatStatus(), 14) +
-    self:MakeIndexBase2(self:IsTargetOfTargetPlayer(), 15) + self:MakeIndexBase2(self:needManaGem(), 16) + self:MakeIndexBase2(self:ProcessExitStatus(), 17)
+    self:MakeIndexBase2(self:IsPlayerCastingSpell(), 12) + self:MakeIndexBase2(self:GetBuffs("Drink"), 13) + self:MakeIndexBase2(self:playerCombatStatus(), 14) +
+    self:MakeIndexBase2(self:IsTargetOfTargetPlayer(), 15) + self:MakeIndexBase2(self:IsPlayerChannelingSpell(), 16) + self:MakeIndexBase2(self:ProcessExitStatus(), 17)
 end
 
 -- Returns bitmask values.
@@ -548,6 +546,26 @@ function DataToColor:equipName(slot)
     if equip == nil then equip = 0
     end
     return tonumber(equip)
+end
+
+-- Casting: /run print(UnitCastingInfo("player"))
+function IsPlayerCastingSpell()
+	local spellinfo = UnitCastingInfo("player")
+	if spellinfo
+		return 1
+	else
+		return 0
+	end
+end
+
+-- Channeling: /run print(UnitChannelInfo("player"))
+function IsPlayerChannelingSpell()
+	local spellinfo = UnitChannelInfo("player")
+	if spellinfo
+		return 1
+	else
+		return 0
+	end
 end
 -- -- Function to tell if a spell is on cooldown and if the specified slot has a spell assigned to it
 -- -- Slot ID information can be found on WoW Wiki. Slots we are using: 1-12 (main action bar), Bottom Right Action Bar maybe(49-60), and  Bottom Left (61-72)
@@ -796,7 +814,16 @@ function DataToColor:GetBuffs(buff)
     return 0
 end
 
--- Returns the slot in which we have a fully degraded item
+function DataToColor:GetComboPoints()
+	local points = GetComboPoints("player", "target")
+	if points then
+		return points
+	else
+		return 0
+	end
+end
+
+-- Returns true if any item in inventory is broken
 function DataToColor:GetInventoryBroken()
     for i = 1, 16 do
         local isBroken = GetInventoryItemBroken("player", i)
@@ -806,6 +833,7 @@ function DataToColor:GetInventoryBroken()
     end
     return 0
 end
+
 -- Checks if we are on a taxi
 function DataToColor:IsPlayerFlying()
     local taxiStatus = UnitOnTaxi("player")
