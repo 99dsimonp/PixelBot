@@ -1,6 +1,7 @@
 import ColorConversion as cc
 import mss
 import Data
+import math
 
 PIXEL_PLAYER_X_COORD = (8, 25)
 PIXEL_PLAYER_Y_COORD = (13, 25)
@@ -20,14 +21,22 @@ PIXEL_TARGET_NAMEFIRST = (83, 25)
 PIXEL_TARGET_NAMESECOND = (88, 25)
 PIXEL_TARGET_HEALTH_MAX = (93, 25)
 PIXEL_TARGET_HEALTH_CURR = (98, 25)
-PIXEL_IS_LOOTING_BOP = (1280+90, 720+270)
-PIXEL_IS_LOOTING_BOE = (120, 200)
+PIXEL_IS_LOOTING_BOP = (1431, 275)
+PIXEL_IS_LOOTING_BOE = (207, 350)
+PIXEL_LOOT_COLOR = (128, 26, 204)
+
+# PIXELS WITH DATA WHEN WINDOWED MODE:
+# i= 23-27, j=21-25 ALL VALUES INCLUSIVE
+# i= 23-27, j=26-30
+# print(ColorToString(*scr2.pixel(30, 27)))
+# print(ColorToInteger(*scr2.pixel(*PLAYER_HEALTH_MAX)))
+
 
 
 def thread_monitor(threadname):
     sct = mss.mss()
     while True:
-        scr2 = sct.grab({"mon": 2, "top": 0,"left": 0, "width": 300, "height": 30})
+        scr2 = sct.grab({"mon": 2, "top": 0,"left": 0, "width": 1432, "height": 351})
         Data.PLAYER_X_COORD = cc.ColorToDecimal(*scr2.pixel(*PIXEL_PLAYER_X_COORD))
         Data.PLAYER_Y_COORD = cc.ColorToDecimal(*scr2.pixel(*PIXEL_PLAYER_Y_COORD))
         Data.PLAYER_FACING = cc.ColorToDecimal(*scr2.pixel(*PIXEL_PLAYER_FACING))
@@ -35,7 +44,7 @@ def thread_monitor(threadname):
         Data.ZONE_SECONDNAME = cc.ColorToString(*scr2.pixel(*PIXEL_ZONE_SECONDNAME))
         Data.PLAYER_CORPSE_X_COORD = cc.ColorToDecimal(*scr2.pixel(*PIXEL_PLAYER_CORPSE_X_COORD))
         Data.PLAYER_CORPSE_Y_COORD = cc.ColorToDecimal(*scr2.pixel(*PIXEL_PLAYER_CORPSE_Y_COORD))
-        Data.PLAYER_BOOLEAN_VAR = cc.ColorToBool(*scr2.pixel(*PIXEL_PLAYER_BOOLEAN_VAR))
+        #Data.PLAYER_BOOLEAN_VAR = cc.ColorToBool(*scr2.pixel(*PIXEL_PLAYER_BOOLEAN_VAR))
         Data.PLAYER_HEALTH_MAX = cc.ColorToInteger(*scr2.pixel(*PIXEL_PLAYER_HEALTH_MAX))
         Data.PLAYER_HEALTH_CURR = cc.ColorToInteger(*scr2.pixel(*PIXEL_PLAYER_HEALTH_CURR))
         Data.PLAYER_MANA_MAX = cc.ColorToInteger(*scr2.pixel(*PIXEL_PLAYER_MANA_MAX))
@@ -49,4 +58,6 @@ def thread_monitor(threadname):
         Data.TARGET_IN_COMBAT, Data.TARGET_IS_DEAD, Data.PLAYER_IS_DEAD, Data.PLAYER_NUM_FREE_TALENT_POINTS, Data.PLAYER_NEEDS_TO_BUY_WATER, Data.PLAYER_HAS_FOOD_BUFF, Data.PLAYER_COMBO_POINTS, \
         Data.PLAYER_IN_STEALTH, Data.PLAYER_ICE_BARRIER, Data.PLAYER_HAS_BROKEN_EQUIPMENT, Data.PLAYER_IN_FLIGHT, Data.PLAYER_NEEDS_TO_BUY_FOOD, \
         Data.PLAYER_CASTING_SPELL, Data.PLAYER_HAS_DRINK_BUFF, Data.PLAYER_IN_COMBAT, Data.TARGET_ATTACKING_PLAYER, Data.PLAYER_CHANNELING_SPELL, Data.PROCESS_EXIT_STATUS = cc.ColorToBool(*scr2.pixel(*PIXEL_PLAYER_BOOLEAN_VAR))
+        Data.PLAYER_IS_LOOTING = scr2.pixel(*PIXEL_IS_LOOTING_BOE) != PIXEL_LOOT_COLOR
+        Data.PLAYER_IS_LOOTING_BOP = scr2.pixel(*PIXEL_IS_LOOTING_BOP) != PIXEL_LOOT_COLOR
         #... add more

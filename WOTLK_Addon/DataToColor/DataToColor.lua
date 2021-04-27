@@ -107,6 +107,7 @@ function StartSetup()
         SETUP_SEQUENCE = false
     end
 end
+
 function DataToColor:error(msg)
     self:log("|cff0000ff" .. msg .. "|r")
     self:log(msg)
@@ -320,7 +321,7 @@ function DataToColor:CreateFrames(n)
             MakePixelSquareArr(integerToColor(self:GetProfessionLevel("Skinning")), 41) -- Skinning profession level
             -- tracks our fishing level
             MakePixelSquareArr(integerToColor(self:GetProfessionLevel("Fishing")), 42) -- Fishing profession level
-            MakePixelSquareArr(integerToColor(self:GetDebuffs("FrostNova")), 43) -- Checks if target is frozen by frost nova debuff
+            MakePixelSquareArr(integerToColor(self:PlayerGetDebuffs("Recently Bandaged")), 43) -- Checks if player has recently been bandaged.
             MakePixelSquareArr(integerToColor(self:GameTime()), 44) -- Returns time in the game
             MakePixelSquareArr(integerToColor(self:GetGossipIcons()), 45) -- Returns which gossip icons are on display in dialogue box
             MakePixelSquareArr(integerToColor(self:PlayerClass()), 46) -- Returns player class as an integer
@@ -496,8 +497,8 @@ end
 function DataToColor:isInRange()
     -- Assigns arbitrary value (50) to note the target is not within range
     local range = 50
-	if IsActionInRange(6) then range = 30 end -- Checks Fire Blast Range, slot 4
-    if IsActionInRange(1) then range = 5 end -- Checks Fireball Range, slot 2
+	if IsActionInRange(6)==1 then range = 30 end -- Checks Fire Blast Range, slot 4
+    if IsActionInRange(1)==1 then range = 5 end -- Checks Fireball Range, slot 2
     --if IsActionInRange(3) and self:getPlayerLevel() < 25 then range = 30 end -- Checks Frostbolt Range, slot 3
     --if IsActionInRange(10) then range = 30 end -- Checks Counterspell Range, slot 11. Useful for when after arctic reach is applied
     --if IsActionInRange(4) then range = 20 end -- Checks Fire Blast Range, slot 4
@@ -549,9 +550,9 @@ function DataToColor:equipName(slot)
 end
 
 -- Casting: /run print(UnitCastingInfo("player"))
-function IsPlayerCastingSpell()
-	local spellinfo = UnitCastingInfo("player")
-	if spellinfo
+function DataToColor:IsPlayerCastingSpell()
+	local spellinfo, _, _, _, _, endTime = UnitCastingInfo("player")
+	if spellinfo ~= nil then
 		return 1
 	else
 		return 0
@@ -559,9 +560,9 @@ function IsPlayerCastingSpell()
 end
 
 -- Channeling: /run print(UnitChannelInfo("player"))
-function IsPlayerChannelingSpell()
+function DataToColor:IsPlayerChannelingSpell()
 	local spellinfo = UnitChannelInfo("player")
-	if spellinfo
+	if spellinfo ~= nil then
 		return 1
 	else
 		return 0
@@ -646,6 +647,18 @@ end
 -- Checks target to see if  target has a specified debuff
 function DataToColor:GetDebuffs(debuff)
     for i = 1, 5 do local db = UnitDebuff("target", i);
+        if db ~= nil then
+            if string.find(db, debuff) then
+                return 1
+            end
+        end
+    end
+    return 0
+end
+
+-- Checks target to see if  target has a specified debuff
+function DataToColor:PlayerGetDebuffs(debuff)
+    for i = 1, 5 do local db = UnitDebuff("player", i);
         if db ~= nil then
             if string.find(db, debuff) then
                 return 1
