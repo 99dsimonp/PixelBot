@@ -36,15 +36,19 @@ def Fight():
     print("Fighting")
     no_energy_used_count = 0
     prev_energy = 100
+    prev_pos = (Data.PLAYER_X_COORD, Data.PLAYER_Y_COORD)
     while Data.PLAYER_IN_COMBAT:
         if not Data.TARGET_IN_COMBAT or not Data.TARGET_ATTACKING_PLAYER:
             #Try to find the reason we're in combat
+            print("finding new target, not in combat with current...")
             pyautogui.press('tab')
             continue
             # Far away from target? Run towards it
+        pyautogui.press('0') # startattack
         if Data.PLAYER_RANGE > 10:
             pyautogui.press(Data.KEY_INTERACT_WITH_TARGET)
             continue
+        #We're within range.
         if prev_energy > 45:
             # if we reach this point we didnt do anything.. do we need to face enemy?
             no_energy_used_count +=1
@@ -52,6 +56,9 @@ def Fight():
                 pyautogui.press(Data.KEY_INTERACT_WITH_TARGET)
                 no_energy_used_count = 0
         prev_energy = Data.PLAYER_MANA_CURR
+        #What if we're still moving?
+        if (Data.PLAYER_X_COORD, Data.PLAYER_Y_COORD) != prev_pos:
+            pyautogui.press('s')
         # Bandage on low health
         if Data.PLAYER_HEALTH_CURR < Data.PLAYER_HEALTH_MAX*0.30:
             pyautogui.press('4')
@@ -84,6 +91,7 @@ def RecentlyLeftCombat():
         pyautogui.press('7')
         while Data.PLAYER_HEALTH_CURR < Data.PLAYER_HEALTH_MAX:
             pass
+    pyautogui.press("esc")
 
 def Pull():
     #Check if in range and good target
@@ -95,27 +103,44 @@ def Pull():
             print("Waiting to run closer")
             pass
     else:
-        print("Within range...")
+        pyautogui.press(Data.KEY_INTERACT_WITH_TARGET)
     pyautogui.press('s')
+    time.sleep(0.2)
     pyautogui.press('6')
-    time.sleep(1.0)
+    time.sleep(2.5)
 
+def ScanForTarget():
+    #clear target
+    #if Data.TARGET_IS_DEAD:
+    #    pyautogui.press("esc")
+    #    time.sleep(0.5)
+    while Data.TARGET_HEALTH_CURR == 0:
+        pyautogui.press('tab')
 
 
 thread1 = Thread( target=PR.thread_monitor, args=("Thread-1", ) )
 thread1.start()
 time.sleep(1) #NECESSARY TO INITIALIZE ALL VARIABLES
 
-#thread2 = Thread( target=Display.run, args=("Thread-2", ) )
-#thread2.start() #Displaying things, how?
+#Movement.recordMovement()
+#exit(0)
+
+
+path = Movement.readPath()
+thread2 = Thread(target=Movement.FollowPath, args=("Thread-2", path, ) )
+thread2.start()
+#Movement.recordMovement()
 while True:
     #print(str(Data.PLAYER_IN_COMBAT))
     #pass
     while Data.TARGET_HEALTH_CURR == 0:
+        ScanForTarget()
         print("Waiting for target")
+    Movement.paused = True
     Pull()
     Fight()
     RecentlyLeftCombat()
+    Movement.paused = False
 
 #Movement.recordMovement()
 path = Movement.readPath()

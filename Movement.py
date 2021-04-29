@@ -11,9 +11,9 @@ default = {
     "POINT_DISTANCE_ERROR": 0.007,
     "POINT_FINE_DISTANCE_ERROR": 0.003,
     "TURN_TIME_FACTOR": 878.333333,
-    "CORRECTING_TURN_TIME_FACTOR": 400,
+    "CORRECTING_TURN_TIME_FACTOR": 2000, #was 400, takes 2 sec for full turn
     "MINIMUM_CORRECTING_TURN_TIME_MS": 200,
-    "MINIMUM_TURN_TIME_MS": 20
+    "MINIMUM_TURN_TIME_MS": 100
 }
 
 special = {
@@ -91,15 +91,17 @@ class TurningControl:
 
 
     def askTurn(self, time, key):
-        self.stop()
-        self.turnTimeout = threading.Timer(((time-20)/400), self.TimerOver)
-        self.turnKey = key
-        pyautogui.keyDown(self.turnKey)
-        self.turnTimeout.start()
-        while not self.turnDone:
-            pass
-        pyautogui.keyUp(self.turnKey)
-        self.TurnDone = False
+        if not paused:
+            self.stop()
+            self.turnDone = False
+            self.turnTimeout = threading.Timer((time/1000), self.TimerOver)
+            self.turnKey = key
+            pyautogui.keyDown(self.turnKey)
+            self.turnTimeout.start()
+            while not self.turnDone:
+                pass
+            pyautogui.keyUp(self.turnKey)
+            self.TurnDone = False
 
     def askTurnLeft(self, time):
         self.askTurn(time, 'a')
@@ -202,6 +204,10 @@ def MoveTo(X, Y, accuracy, config=None):
         minTurnTime  = config["MINIMUM_TURN_TIME_MS"]
 
     while True:
+        while paused:
+            wc.stop()
+            tc.stop()
+
         if pointDistance(Data.PLAYER_X_COORD, Data.PLAYER_Y_COORD, X, Y) < distanceAccuracy:
             print("Found point!")
             return
@@ -215,6 +221,8 @@ def MoveTo(X, Y, accuracy, config=None):
             directionDiff = (math.pi * 2) - (directionDiff * -1)
 
         turnTime = (RadToDeg(directionDiff) / 360) * config["TURN_TIME_FACTOR"]
+
+        print("turntime is" + str(turnTime))
 
         if math.fabs(turnTime) > config["MINIMUM_CORRECTING_TURN_TIME_MS"]:
             print("Making a correcting turn")
@@ -236,10 +244,33 @@ def MoveTo(X, Y, accuracy, config=None):
                 tc.askTurnRight(turnTime)
 
 
-def FollowPath(path):
+def FollowPath(threadname,  path):
     navigationActive = True
-    for X,Y in path:
+
+    closest_point =path[0]
+    closest_point_dist = 100000000
+    index = 0
+    for i, (X,Y) in enumerate(path):
+        if pointDistance(Data.PLAYER_X_COORD, Data.PLAYER_Y_COORD, X, Y) < closest_point_dist:
+            closest_point = (X,Y)
+            closest_point_dist = pointDistance(Data.PLAYER_X_COORD, Data.PLAYER_Y_COORD, X, Y)
+            index = i
+
+    for X,Y in path[index:]:
+        while paused:
+            pass
+            #print("Movement paused, waiting....")
+            wc.stop()
         MoveTo(X,Y, 'fine')
+
+    while True:
+        path.reverse()
+        for X,Y in path:
+            while paused:
+                pass
+                #print("Movement paused, waiting....")
+                wc.stop()
+            MoveTo(X,Y, 'fine')
     wc.stop()
     navigationActive = False
 
@@ -253,7 +284,7 @@ def recordMovement():
     while len(movement_coords) < 10000:
         old_X = Data.PLAYER_X_COORD
         old_Y = Data.PLAYER_Y_COORD
-        time.sleep(0.2)
+        time.sleep(0.5)
         movement_coords.append((Data.PLAYER_X_COORD, Data.PLAYER_Y_COORD))
         print(str(Data.PLAYER_X_COORD) + "," + str(Data.PLAYER_Y_COORD))
         if old_X == Data.PLAYER_X_COORD and old_Y == Data.PLAYER_Y_COORD:
