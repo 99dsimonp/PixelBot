@@ -43,6 +43,9 @@ local talentList = {
 local CORPSE_RETRIEVAL_DISTANCE = 40
 local ASSIGN_MACROS = true
 
+local who_is_attacking_me = {}
+local current_time
+
 -- Trigger between emitting game data and frame location data
 SETUP_SEQUENCE = false
 -- Exit process trigger
@@ -50,7 +53,7 @@ EXIT_PROCESS_STATUS = 0
 -- Assigns various macros if user changes variable to true
 ASSIGN_MACROS_INITIALIZE = false
 -- Total number of data frames generated
-local NUMBER_OF_FRAMES = 50
+local NUMBER_OF_FRAMES = 150
 -- Set number of pixel rows
 local FRAME_ROWS = 1
 -- Size of data squares in px. Varies based on rounding errors as well as dimension size. Use as a guideline, but not 100% accurate.
@@ -86,7 +89,7 @@ DataToColor.r = 0
 local CHARACTER_NAME = UnitName("player")
 
 -- List of possible subzones to which a player's hearthstone may be bound
-local HearthZoneList = {"CENARION HOLD", "VALLEY OF TRIALS", "THE CROSSROADS", "RAZOR HILL", "DUROTAR", "ORGRIMMAR", "CAMP TAURAJO", "FREEWIND POST", "GADGETZAN", "SHADOWPREY VILLAGE", "THUNDER BLUFF", "UNDERCITY", "CAMP MOJACHE", "COLDRIDGE VALLEY", "DUN MOROGH", "THUNDERBREW DISTILLERY", "IRONFORGE", "STOUTLAGER INN", "STORMWIND CITY", "SOUTHSHORE", "LAKESHIRE", "STONETALON PEAK", "GOLDSHIRE", "SENTINEL HILL", "DEEPWATER TAVERN", "THERAMORE ISLE", "DOLANAAR", "ASTRANAAR", "NIJEL'S POINT", "CRAFTSMEN'S TERRACE", "AUBERDINE", "FEATHERMOON STRONGHOLD", "BOOTY BAY", "WILDHAMMER KEEP", "DARKSHIRE", "EVERLOOK", "RATCHET", "LIGHT'S HOPE CHAPEL", "ELWYNN FOREST", "GALLOWS' END TAVERN"}
+local HearthZoneList = {"CENARION HOLD", "VALLEY OF TRIALS", "THE CROSSROADS", "RAZOR HILL", "DUROTAR", "ORGRIMMAR", "CAMP TAURAJO", "FREEWIND POST", "GADGETZAN", "SHADOWPREY VILLAGE", "THUNDER BLUFF", "UNDERCITY", "CAMP MOJACHE", "COLDRIDGE VALLEY", "DUN MOROGH", "THUNDERBREW DISTILLERY", "IRONFORGE", "STOUTLAGER INN", "STORMWIND CITY", "SOUTHSHORE", "LAKESHIRE", "STONETALON PEAK", "GOLDSHIRE", "SENTINEL HILL", "DEEPWATER TAVERN", "THERAMORE ISLE", "DOLANAAR", "ASTRANAAR", "NIJEL'S POINT", "CRAFTSMEN'S TERRACE", "AUBERDINE", "FEATHERMOON STRONGHOLD", "BOOTY BAY", "WILDHAMMER KEEP", "DARKSHIRE", "EVERLOOK", "RATCHET", "LIGHT'S HOPE CHAPEL", "ELWYNN FOREST", "GALLOWS' END TAVERN", "MULGORE"}
 local EnchantmentStrings = {}
 
 function DataToColor:slashCommands()
@@ -95,9 +98,14 @@ function DataToColor:slashCommands()
     SlashCmdList["DC"] = StartSetup;
 end
 
+
 -- Function to quickly log info to wow console
 function DataToColor:log(msg)
     DEFAULT_CHAT_FRAME:AddMessage(msg) -- alias for convenience
+end
+
+function eventHandler(self, event, ...)
+ print("Hello World! Hello " .. event);
 end
 
 function StartSetup()
@@ -236,7 +244,7 @@ function DataToColor:CreateFrames(n)
         end
         -- Number of loops is based on the number of generated frames declared at beginning of script
         
-        for i = 1, 46 do
+        for i = 1, NUMBER_OF_FRAMES-1 do
             MakePixelSquareArr({63 / 255, 0, 63 / 255}, i)
         end
         if not SETUP_SEQUENCE then
@@ -327,6 +335,7 @@ function DataToColor:CreateFrames(n)
             MakePixelSquareArr(integerToColor(self:PlayerClass()), 46) -- Returns player class as an integer
             MakePixelSquareArr(integerToColor(self:isUnskinnable()), 47) -- Returns 1 if creature is unskinnable
             MakePixelSquareArr(integerToColor(self:hearthZoneID()), 48) -- Returns subzone of that is currently bound to hearhtstone
+			MakePixelSquareArr(integerToColor(self:howManyAreAttackingMe(elapsed)), 49) -- 攻击我的敌人数量
             self:HandleEvents()
         end
         if SETUP_SEQUENCE then
@@ -402,7 +411,42 @@ function DataToColor:CreateFrames(n)
     
     -- Assign self.frames to frame list generated above
     self.frames = frames
-    self.frames[1]:SetScript("OnUpdate", function() UpdateFrameColor(f) end)
+	
+	
+	--local frame = CreateFrame("FRAME", "FooAddonFrame");
+	--frame:RegisterEvent("PLAYER_TARGET_CHANGED");
+	--frame:SetScript("OnEvent", eventHandler);
+   
+	local framex = CreateFrame("Frame", "FooAddonFrame");
+	framex:RegisterEvent("PLAYER_REGEN_DISABLED") --注册进入战斗事件
+    framex:RegisterEvent("PLAYER_REGEN_ENABLED") -- 注册离开战斗事件
+	framex:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+	--framex:RegisterEvent("PLAYER_ENTER_COMBAT")
+	--framex:RegisterEvent("PLAYER_LEAVE_COMBAT")
+	--framex:RegisterEvent("PLAYER_TARGET_CHANGED")
+	--framex:SetScript("OnEvent", eventHandler)
+	self.frames[1]:SetScript("OnUpdate", function(self, elapsed) UpdateFrameColor(elapsed) end)
+	framex:SetScript("OnEvent", function(self, event, ...)
+        if event == "COMBAT_LOG_EVENT_UNFILTERED" then
+            local time_stamp, a, b, target_id, source_name, source_flags, d, player_id, dest_name = CombatLogGetCurrentEventInfo(event)
+            if not current_time or time_stamp > current_time then
+                current_time = time_stamp
+            end
+
+            if dest_name == CHARACTER_NAME and target_id and bit.band(source_flags, COMBATLOG_OBJECT_TYPE_NPC) == COMBATLOG_OBJECT_TYPE_NPC then --如果目标是我并且源是个玩家，则加入攻击table，如果需要判断怪物使用：COMBATLOG_OBJECT_TYPE_NPC
+                who_is_attacking_me[target_id] = current_time
+            end
+        elseif event == "PLAYER_REGEN_DISABLED" then -- 进入战斗，显示插件
+            framex:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED") -- 注册战斗记录事件
+        elseif event == "PLAYER_REGEN_ENABLED" then --离开战斗，清空攻击我的列表
+            wipe(who_is_attacking_me)
+            current_time = nil
+            framex:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+        elseif event == "CHAT_MSG_WHISPER" then
+            sombody_whisper_me = sombody_whisper_me + 1
+        end
+		print("EVENT HANDLED! Hello " .. event);
+    end)
 end
 
 -- Use Astrolabe function to get current player position
@@ -796,6 +840,20 @@ function DataToColor:deadOrAlive()
     end
 end
 
+-- Calculate how many mobs are attacking us
+function DataToColor:howManyAreAttackingMe(elapsed)
+    local n = 0
+    for k, v in pairs(who_is_attacking_me) do
+        			print(k,v)
+        if v > current_time - 3 then
+            n = n + 1
+        else
+            who_is_attacking_me[k] = nil
+        end
+    end
+    return n
+end
+
 -- Checks the number of talent points we have available to spend
 function DataToColor:checkTalentPoints()
     if UnitCharacterPoints("player") > 0 then
@@ -930,7 +988,7 @@ function DataToColor:hearthZoneID()
     end
     if index[hearthzone] ~= nil then
         return index[hearthzone]
-    else self:log(hearthzone .. "is not registered. Please add it to the table in D2C.")
+    --else self:log(hearthzone .. "is not registered. Please add it to the table in D2C.")
     end
 end
 

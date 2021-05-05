@@ -124,6 +124,8 @@ time.sleep(1) #NECESSARY TO INITIALIZE ALL VARIABLES
 
 #Movement.recordMovement()
 #exit(0)
+while True:
+    print(str(Data.PLAYER_IN_STEALTH))
 
 
 path = Movement.readPath()
