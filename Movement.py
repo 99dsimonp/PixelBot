@@ -4,6 +4,7 @@ import Data
 import time
 import threading
 import pickle
+import Inputter
 
 default = {
     "NEAREST_POINT_THRESHOLD": 0.3,
@@ -50,6 +51,7 @@ unstuck = {
 }
 paused = False
 navigationActive = False
+inp = Inputter.Inputter("World of Warcraft")
 
 
 class WalkingControl:
@@ -59,25 +61,31 @@ class WalkingControl:
     def startWalking(self):
         if not paused:
             if self.s:
-                pyautogui.keyUp('s')
+                inp.keyup('s')
+                #pyautogui.keyUp('s')
             if not self.w:
-                pyautogui.keyDown('w')
+                inp.keydown('w')
+                #pyautogui.keyDown('w')
             self.s = False
             self.w = True
 
     def startWalkingBackwads(self):
         if self.w:
-            pyautogui.keyUp('w')
+            inp.keyup('w')
+            #pyautogui.keyUp('w')
         if not self.s:
-            pyautogui.keyDown('s')
+            inp.keydown('s')
+            #pyautogui.keyDown('s')
         self.w = False
         self.s = True
 
     def stop(self):
         if self.w:
-            pyautogui.keyUp('w')
+            inp.keyup('w')
+            #pyautogui.keyUp('w')
         if self.s:
-            pyautogui.keyUp('s')
+            inp.keyup('s')
+            #pyautogui.keyUp('s')
         self.w = False
         self.s = False
 
@@ -96,11 +104,13 @@ class TurningControl:
             self.turnDone = False
             self.turnTimeout = threading.Timer((time/1000), self.TimerOver)
             self.turnKey = key
-            pyautogui.keyDown(self.turnKey)
+            inp.keydown(self.turnKey)
+            #pyautogui.keyDown(self.turnKey)
             self.turnTimeout.start()
             while not self.turnDone:
                 pass
-            pyautogui.keyUp(self.turnKey)
+            inp.keyup(self.turnKey)
+            #pyautogui.keyUp(self.turnKey)
             self.TurnDone = False
 
     def askTurnLeft(self, time):
@@ -112,7 +122,8 @@ class TurningControl:
     def stop(self):
         if self.turnTimeout:
             self.turnTimeout.cancel()
-            pyautogui.keyUp(self.turnKey)
+            inp.keyup(self.turnKey)
+            #pyautogui.keyUp(self.turnKey)
 
 tc = TurningControl()
 wc = WalkingControl()

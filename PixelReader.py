@@ -159,7 +159,7 @@ def thread_monitor(threadname):
         #... add more
 
 if __name__=="__main__":
-    thread_monitor(1)
+    #thread_monitor(1)
     start_time = time.time()
     # initialize the WindowCapture class
     wincap = WindowCapture('World of Warcraft')

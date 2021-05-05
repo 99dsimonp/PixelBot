@@ -13,8 +13,11 @@ import Data
 import Display
 import Movement
 import math
+import Inputter
 
 start_time = time.time()
+inp = Inputter.Inputter("World of Warcraft")
+
 
 
 
@@ -124,7 +127,9 @@ time.sleep(1) #NECESSARY TO INITIALIZE ALL VARIABLES
 
 #Movement.recordMovement()
 #exit(0)
+
 while True:
+    inp.tapkey('space')
     print(str(Data.PLAYER_IN_STEALTH))
 
 
