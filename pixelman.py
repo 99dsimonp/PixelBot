@@ -129,7 +129,7 @@ time.sleep(1) #NECESSARY TO INITIALIZE ALL VARIABLES
 #exit(0)
 
 while True:
-    inp.tapkey('space')
+    inp.tapkey('num1')
     print(str(Data.PLAYER_IN_STEALTH))
 
 
