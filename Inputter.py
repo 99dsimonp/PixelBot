@@ -25,20 +25,26 @@ class Inputter:
         self.hwnd = win32gui.FindWindow(None, window_name)
 
     def keydown(self, key):
-        key = translate_key(key)
+        keyp = translate_key(key)
         if not self.debugging:
-            win32gui.SendMessage(self.hwnd, win32con.WM_KEYDOWN, key, 0)
+            win32gui.SendMessage(self.hwnd, win32con.WM_KEYDOWN, keyp, 0)
             #pyautogui.keyDown(key)
+        else:
+            print("DEBUG: Attempted to pressdown key" + key)
 
     def keyup(self, key):
-        key = translate_key(key)
+        keyp = translate_key(key)
         if not self.debugging:
-            win32gui.SendMessage(self.hwnd, win32con.WM_KEYUP, key, 0)
+            win32gui.SendMessage(self.hwnd, win32con.WM_KEYUP, keyp, 0)
             #pyautogui.keyUp(key)
+        else:
+            print("DEBUG: Attempted to pressup key" + key)
 
     def tapkey(self, key):
-        key = translate_key(key)
+        keyp = translate_key(key)
 
         if not self.debugging:
-            win32gui.SendMessage(self.hwnd, win32con.WM_KEYDOWN, key, 0)
-            win32gui.SendMessage(self.hwnd, win32con.WM_KEYUP, key, 0)
+            win32gui.SendMessage(self.hwnd, win32con.WM_KEYDOWN, keyp, 0)
+            win32gui.SendMessage(self.hwnd, win32con.WM_KEYUP, keyp, 0)
+        else:
+            print("DEBUG: Attempted to pressup key" + key)

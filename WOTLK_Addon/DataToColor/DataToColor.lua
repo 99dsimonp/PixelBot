@@ -45,13 +45,16 @@ local ASSIGN_MACROS = true
 
 local who_is_attacking_me = {}
 local current_time
+local KEYBINDS_SET = false
 
 -- Trigger between emitting game data and frame location data
 SETUP_SEQUENCE = false
 -- Exit process trigger
-EXIT_PROCESS_STATUS = 0
+EXIT_PROCESS_STATUS = 0 
 -- Assigns various macros if user changes variable to true
-ASSIGN_MACROS_INITIALIZE = false
+ASSIGN_MACROS_INITIALIZE = false --/run SetBindingMacro("SHIFT-A", "mymacro") 
+-- SetBindingSpell("key", "spell"); /run SetBinding("1", "SPELL Stealth")https://wowwiki-archive.fandom.com/wiki/World_of_Warcraft_API#CreateMacro
+-- /run SetBindingSpell("NUMPAD1", "Wrath")
 -- Total number of data frames generated
 local NUMBER_OF_FRAMES = 150
 -- Set number of pixel rows
@@ -166,6 +169,26 @@ function DataToColor:OnInitialize()
     self:slashCommands();
 end
 
+function DataToColor:SetUpKeybinds()
+	self:log("Setting keybinds")
+	local class = self:PlayerClass()
+	local keybinds = true
+	if class == 11 then
+		local v = SetBindingSpell("NUMPAD1", "Wrath")
+		if v == nil then
+			keybinds = false
+		end
+		v = SetBindingSpell("NUMPAD2", "Healing Touch")
+		if v == nil then
+			keybinds = false
+		end
+		--v = SetBindingSpell("NUMPAD3", "Moonfire")
+	end
+	if keybinds then
+		KEYBINDS_SET = true
+	end
+end
+
 function integerToColor(i)
     if i ~= math.floor(i) then
         error("The number passed to 'integerToColor' must be an integer")
@@ -248,6 +271,9 @@ function DataToColor:CreateFrames(n)
             MakePixelSquareArr({63 / 255, 0, 63 / 255}, i)
         end
         if not SETUP_SEQUENCE then
+			if not KEYBINDS_SET then
+				self:SetUpKeybinds()
+			end
             MakePixelSquareArr(integerToColor(0), 0)
             -- The final data square, reserved for additional metadata.
             MakePixelSquareArr(integerToColor(2000001), NUMBER_OF_FRAMES - 1)
@@ -339,6 +365,7 @@ function DataToColor:CreateFrames(n)
             self:HandleEvents()
         end
         if SETUP_SEQUENCE then
+			
             -- Emits meta data in data square index 0 concerning our estimated cell size, number of rows, and the numbers of frames
             MakePixelSquareArr(integerToColor(CELL_SIZE * 100000 + 1000 * FRAME_ROWS + NUMBER_OF_FRAMES), 0)
             -- Assign pixel squares a value equivalent to their respective indices.
@@ -792,16 +819,56 @@ function DataToColor:CorpsePosition(coord)
     end
 end
 
+--None = 0
+--Warrior = 1
+--Paladin = 2
+--Hunter = 3
+--Rogue = 4
+--Priest = 5
+--DeathKnight = 6
+--Shaman = 7
+--Mage = 8
+--Warlock = 9
+--Monk = 10
+--Druid = 11
+--Demon Hunter = 12
 --returns class of player
 function DataToColor:PlayerClass()
     -- UnitClass returns class and the class in uppercase e.g. "Mage" and "MAGE"
     local class, CC = UnitClass("player")
+	if CC == "WARRIOR" then
+		return 1
+	end
+	if CC == "PALADIN" then
+		return 2
+	end
+	if CC == "HUNTER" then
+		return 3
+	end
+	if CC == "ROGUE" then
+		return 4
+	end
+	if CC == "PRIEST" then
+		return 5
+	end
+	if CC == "DEATHKNIGHT" then
+		return 6
+	end
+	if CC == "SHAMAN" then
+		return 7
+	end
     if CC == "MAGE" then
-        class = 128
-    else
-        class = 0
-    end
-    return class
+        return 8
+	end
+	if CC == "WARLOCK" then
+        return 9
+	end
+	if CC == "MONK" then
+        return 10
+	end
+	if CC == "DRUID" then
+		return 11
+	end
 end
 -----------------------------------------------------------------
 -- Boolean functions --------------------------------------------
