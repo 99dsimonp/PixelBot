@@ -1,6 +1,8 @@
 ----------------------------------------------------------------------------
 --  DataToColor - display player position as color
 ----------------------------------------------------------------------------
+-- In case of addon error /console taintLog 1
+
 
 DataToColor = {}
 DataToColor = LibStub("AceAddon-3.0"):NewAddon("AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0", "AceComm-3.0", "AceSerializer-3.0")
@@ -46,6 +48,7 @@ local ASSIGN_MACROS = true
 local who_is_attacking_me = {}
 local current_time
 local KEYBINDS_SET = false
+local player_in_combat = false
 
 -- Trigger between emitting game data and frame location data
 SETUP_SEQUENCE = false
@@ -90,6 +93,7 @@ DataToColor.r = 0
 
 -- Character's name
 local CHARACTER_NAME = UnitName("player")
+local class = 0
 
 -- List of possible subzones to which a player's hearthstone may be bound
 local HearthZoneList = {"CENARION HOLD", "VALLEY OF TRIALS", "THE CROSSROADS", "RAZOR HILL", "DUROTAR", "ORGRIMMAR", "CAMP TAURAJO", "FREEWIND POST", "GADGETZAN", "SHADOWPREY VILLAGE", "THUNDER BLUFF", "UNDERCITY", "CAMP MOJACHE", "COLDRIDGE VALLEY", "DUN MOROGH", "THUNDERBREW DISTILLERY", "IRONFORGE", "STOUTLAGER INN", "STORMWIND CITY", "SOUTHSHORE", "LAKESHIRE", "STONETALON PEAK", "GOLDSHIRE", "SENTINEL HILL", "DEEPWATER TAVERN", "THERAMORE ISLE", "DOLANAAR", "ASTRANAAR", "NIJEL'S POINT", "CRAFTSMEN'S TERRACE", "AUBERDINE", "FEATHERMOON STRONGHOLD", "BOOTY BAY", "WILDHAMMER KEEP", "DARKSHIRE", "EVERLOOK", "RATCHET", "LIGHT'S HOPE CHAPEL", "ELWYNN FOREST", "GALLOWS' END TAVERN", "MULGORE"}
@@ -171,7 +175,7 @@ end
 
 function DataToColor:SetUpKeybinds()
 	self:log("Setting keybinds")
-	local class = self:PlayerClass()
+	class = self:PlayerClass()
 	local keybinds = true
 	if class == 11 then
 		local v = SetBindingSpell("NUMPAD1", "Wrath")
@@ -440,14 +444,10 @@ function DataToColor:CreateFrames(n)
     self.frames = frames
 	
 	
-	--local frame = CreateFrame("FRAME", "FooAddonFrame");
-	--frame:RegisterEvent("PLAYER_TARGET_CHANGED");
-	--frame:SetScript("OnEvent", eventHandler);
-   
 	local framex = CreateFrame("Frame", "FooAddonFrame");
+	framex:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 	framex:RegisterEvent("PLAYER_REGEN_DISABLED") --注册进入战斗事件
     framex:RegisterEvent("PLAYER_REGEN_ENABLED") -- 注册离开战斗事件
-	framex:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 	--framex:RegisterEvent("PLAYER_ENTER_COMBAT")
 	--framex:RegisterEvent("PLAYER_LEAVE_COMBAT")
 	--framex:RegisterEvent("PLAYER_TARGET_CHANGED")
@@ -455,6 +455,22 @@ function DataToColor:CreateFrames(n)
 	self.frames[1]:SetScript("OnUpdate", function(self, elapsed) UpdateFrameColor(elapsed) end)
 	framex:SetScript("OnEvent", function(self, event, ...)
         if event == "COMBAT_LOG_EVENT_UNFILTERED" then
+			  local timestamp, combatEvent, sourceGUID, sourceName, sourceFlags, destGUID, destName, destFlags = ...; -- Those arguments appear for all combat event variants.
+			  local eventPrefix, eventSuffix = combatEvent:match("^(.-)_?([^_]*)$");
+			  print(eventSuffix)
+			  if eventSuffix == "DAMAGE" then
+			   -- Something dealt damage. The last 9 arguments in ... describe how it was dealt.
+			   -- To extract those, we can use the select function:
+			   local amount, overkill, school, resisted, blocked, absorbed, critical, glancing, crushing = select(select("#", ...)-8, ...); -- select("#", ...) returns number of arguments in the vararg expression
+			   print(amount)
+			   -- Do something with the damage details ... 
+			   if eventPrefix == "RANGE" or eventPrefix:match("^SPELL") then
+				-- The first three arguments after destFlags in ... describe the spell or ability dealing damage.
+				-- Extract this data using select as well:
+				local spellId, spellName, spellSchool = select(9, ...); -- Everything from 9th argument in ... onward
+				-- Do something with the spell details ...
+			   end
+			  end
             local time_stamp, a, b, target_id, source_name, source_flags, d, player_id, dest_name = CombatLogGetCurrentEventInfo(event)
             if not current_time or time_stamp > current_time then
                 current_time = time_stamp
@@ -464,15 +480,16 @@ function DataToColor:CreateFrames(n)
                 who_is_attacking_me[target_id] = current_time
             end
         elseif event == "PLAYER_REGEN_DISABLED" then -- 进入战斗，显示插件
-            framex:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED") -- 注册战斗记录事件
+			player_in_combat = true
+			print("In combat")
         elseif event == "PLAYER_REGEN_ENABLED" then --离开战斗，清空攻击我的列表
+			player_in_combat = false
             wipe(who_is_attacking_me)
             current_time = nil
-            framex:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+			print("No longer in combat")
         elseif event == "CHAT_MSG_WHISPER" then
             sombody_whisper_me = sombody_whisper_me + 1
         end
-		print("EVENT HANDLED! Hello " .. event);
     end)
 end
 
@@ -930,13 +947,18 @@ function DataToColor:checkTalentPoints()
 end
 
 function DataToColor:playerCombatStatus()
-    local combatStatus = UnitAffectingCombat("player")
+	if player_in_combat then
+		return 1
+	else
+		return 0
+	end
+    --local combatStatus = UnitAffectingCombat("player")
     -- if player is not in combat, convert nil to 0
-    if combatStatus then
-        return 1
-    else
-        return 0
-    end
+    --if combatStatus then
+    --    return 1
+    --else
+    --    return 0
+    --end
 end
 
 -- Iterates through index of buffs to see if we have the buff is passed in
