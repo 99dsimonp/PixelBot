@@ -1,10 +1,12 @@
 import math
-import pyautogui
 import Data
 import time
 import threading
 import pickle
 import Inputter
+import Point
+from threading import Thread
+import PixelReader as PR
 
 default = {
     "NEAREST_POINT_THRESHOLD": 0.3,
@@ -13,7 +15,7 @@ default = {
     "POINT_FINE_DISTANCE_ERROR": 0.003,
     "TURN_TIME_FACTOR": 878.333333,
     "CORRECTING_TURN_TIME_FACTOR": 2000, #was 400, takes 2 sec for full turn
-    "MINIMUM_CORRECTING_TURN_TIME_MS": 200,
+    "MINIMUM_CORRECTING_TURN_TIME_MS": 300, #Was 200
     "MINIMUM_TURN_TIME_MS": 100
 }
 
@@ -100,6 +102,7 @@ class TurningControl:
 
     def askTurn(self, time, key):
         if not paused:
+            print("Turning for " + str(time) + "ms" )
             self.stop()
             self.turnDone = False
             self.turnTimeout = threading.Timer((time/1000), self.TimerOver)
@@ -124,6 +127,44 @@ class TurningControl:
             self.turnTimeout.cancel()
             inp.keyup(self.turnKey)
             #pyautogui.keyUp(self.turnKey)
+
+class Path:
+    p = []
+    curr_ix = 0
+    dir_forward = False
+
+    def FindClosestPoint(self):
+        closest_point_dist = 100000000
+        for i, (X,Y) in enumerate(self.p):
+            dist = pointDistance(Data.PLAYER_X_COORD, Data.PLAYER_Y_COORD, X, Y)
+            if dist < closest_point_dist:
+                closest_point_dist = dist
+                self.curr_ix = i
+        return
+
+    def __init__(self, p):
+        self.p = p
+
+    def Next(self):
+        current_point = self.p[self.curr_ix]
+        if self.curr_ix == len(self.p) - 1:
+            self.curr_ix -= 1
+            self.dir_forward = False
+        if self.curr_ix == 0:
+            self.dir_forward = True
+            self.curr_ix += 1
+        if self.dir_forward:
+            self.curr_ix += 1
+        if not self.dir_forward:
+            self.curr_ix -= 1
+        #print("Next point is: " + str(self.curr_ix))
+
+        if pointDistance(*current_point, *self.p[self.curr_ix]) > 0.6:
+            print("Next point seems to be erroneous:" + str(pointDistance(*current_point, *self.p[self.curr_ix])))
+            return self.Next()
+        return self.p[self.curr_ix]
+
+
 
 tc = TurningControl()
 wc = WalkingControl()
@@ -155,47 +196,85 @@ def ComputeTurnDegree(playerX, playerY, targetX, targetY):
         new_facing_direction -= math.pi*2
     return new_facing_direction
 
-def Turn(goal_radians): #https://math.stackexchange.com/questions/2062021/finding-the-angle-between-a-point-and-another-point-with-an-angle
-    #Turn speed: pi radians per second
-    #TURN RIGHT (d) DECREASES ANGLE
-    #TURNING LEFT (a) INCREASES ANGLE
-    #1. Increase angle over 2pi and reach aim
-    print("New goal:" + str(goal_radians))
-    curr_PLAYER_FACING = Data.PLAYER_FACING
-    #3. Reduce angle down to goal
-    if curr_PLAYER_FACING > goal_radians and curr_PLAYER_FACING-goal_radians < math.pi:
-        print("Facing3")
-        pyautogui.keyDown('d')
-        sleeptime = (curr_PLAYER_FACING - goal_radians)/math.pi
-        assert(0 < sleeptime < 2)
-        time.sleep(sleeptime)
-        pyautogui.keyUp('d')
-    #2. Increase angle up to goal
-    elif curr_PLAYER_FACING < goal_radians and curr_PLAYER_FACING + math.pi > goal_radians:
-        print("Facing 2")
-        pyautogui.keyDown('a')
-        sleeptime = (goal_radians - curr_PLAYER_FACING)/math.pi
-        assert(0 < sleeptime < 2)
-        time.sleep(sleeptime)
-        pyautogui.keyUp('a')
-        return
-    elif curr_PLAYER_FACING > goal_radians and curr_PLAYER_FACING > math.pi and (curr_PLAYER_FACING + math.pi) % 2* math.pi > goal_radians:
-        print("Facing 1")
-        target = goal_radians + 2*math.pi
-        pyautogui.keyDown('a')
-        sleeptime = (target-Data.PLAYER_FACING)/math.pi
-        assert(0 < sleeptime < 2)
-        time.sleep(sleeptime)
-        pyautogui.keyUp('a')
-        return
-    #4. Reduce angle below 0 to overflow
-    else: #if PLAYER_FACING < goal_radians and PLAYER_FACING + math.pi*2 < goal_radians:
-        print("Facing4")
-        pyautogui.keyDown('d')
-        sleeptime = (curr_PLAYER_FACING+ 2*math.pi - goal_radians)/math.pi
-        assert(0 < sleeptime < 2)
-        time.sleep(sleeptime)
-        pyautogui.keyUp('d')
+
+# Calculate the distance between two points (using distance formula)
+def get_distance_off_tow_pos(p1: Point, p2: Point):
+    return round(((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2) ** 0.5, 8)
+
+
+# Calculate the angle based on the three-point coordinates (steering angle)
+# a is the starting point and the side of the current point
+# b is the side from the starting point to the target point
+# c is the side from the current point to the target point
+# Set: S is the starting point, N is the current point, and T is the target point
+# First use the Pythagorean theorem to calculate the length of the three sides of the triangle, and then use the arc cosine to calculate the radian and angle
+# The angle is the number of angles ab + the number of angles bc
+def posToDegree(startPos: Point, nowPos: Point, targetPos: Point):
+    a = get_distance_off_tow_pos(startPos, nowPos)
+    b = get_distance_off_tow_pos(startPos, targetPos)
+    c = get_distance_off_tow_pos(nowPos, targetPos)
+    print("a = " + str(a) + ", b = " + str(b) + ", c = " + str(c))
+
+    if a == 0:  # The terrain may be stuck at 0
+        return 9999
+    if b == 0:
+        print("The starting point and the target point coincide")
+        return 0
+    if c == 0:
+        print("The current point and the target point coincide")
+        return 0
+
+    # The parameter value of the arc cosine must be in the range of [-1,1].
+    # Because the calculation error of the floating point number of the computer
+    # may be greater than 1 or less than -1, it must be compatible here.
+    tmp = (a ** 2 + b ** 2 - c ** 2) / (2 * a * b)
+    tmp = 1 if tmp >= 1 else tmp
+    tmp = -1 if tmp <= -1 else tmp
+    degreeNST = math.degrees(math.acos(tmp))  # Angle NST in degrees
+
+    tmp = (b ** 2 + c ** 2 - a ** 2) / (2 * b * c)
+    tmp = 1 if tmp >= 1 else tmp
+    tmp = -1 if tmp <= -1 else tmp
+    degreeNTS = math.degrees(math.acos(tmp))  # Angle NTS degrees
+
+    degree = degreeNST + degreeNTS
+    #The actual angle to be corrected should be the supplementary angle of the angle SNT, that is, the sum of the other two internal angles of the triangle
+    print("angle = " + str(degree))
+    return degree
+
+
+# Calculate the radian difference from the current point to the target point
+def calNowToTargetFacing(nowPos: Point, targetPos: Point):
+    slope = math.atan2(targetPos.y - nowPos.y, nowPos.x - targetPos.x)  # Arctangent calculates the azimuth in radians, that is, the angle with the x-axis
+    print("Arctangent：" + str(slope))
+    slope = slope + math.pi  #Because the arctangent function value range is (-π/2,π/2), it needs to be converted to the range of 0-2π
+    slope = slope - math.pi * 0.5  # This radian is the absolute radian from the current point to the target point, which needs to be converted into wow radian, rotated 90° left. Make up (north) 0, not right, consistent with wow
+    if slope < 0:
+        slope = slope + math.pi * 2  #Make sure radians are not a negative number
+
+    if slope > math.pi * 2:  # Also make sure that the radian does not exceed 2π
+        slope = slope - math.pi * 2
+    print("Value after arctangent value processing：" + str(slope))
+    return slope
+
+def leftOrRightByFacing(playerFacing, nowPos: Point, targetPos: Point):
+    slope = calNowToTargetFacing(nowPos, targetPos)
+    directionDiff = slope - playerFacing  #The difference between the radian of the target point and the current radian
+    print("Radian difference：" + str(directionDiff))
+    if directionDiff > math.pi:
+        directionDiff = ((math.pi * 2) - directionDiff) * -1 #If greater than 180°, take another angle, namely 360°-directionDiff, and take the negative
+    if directionDiff < -math.pi:
+        directionDiff = (math.pi * 2) - (directionDiff * -1)  #Less than minus 180° actually has the same meaning as greater than 180°. It also takes an angle and takes positive
+
+    print("Radian difference after processing：" + str(directionDiff))
+    if directionDiff > 0:
+        return "left"
+    return "right"
+
+# Calculate the steering time (amplitude) according to the angle, test 0.52 seconds about 90 degrees
+def degreeToTime(self, degree):
+    one_degree_time = 0.50 / 90  # How many seconds does it take to turn 1 degree
+    return one_degree_time * degree
 
 
 #Accuracy = 'fine' or 'rough'
@@ -214,14 +293,22 @@ def MoveTo(X, Y, accuracy, config=None):
     else:
         minTurnTime  = config["MINIMUM_TURN_TIME_MS"]
 
+    prev_error = 100000.0
+
     while True:
         while paused:
             wc.stop()
             tc.stop()
+            return
+
+        print("Dist to target point: " + str(pointDistance(Data.PLAYER_X_COORD, Data.PLAYER_Y_COORD, X, Y)))
+        if prev_error < pointDistance(Data.PLAYER_X_COORD, Data.PLAYER_Y_COORD, X, Y):
+            print("Prev error: " + str(prev_error) + " Curr error: " + str(pointDistance(Data.PLAYER_X_COORD, Data.PLAYER_Y_COORD, X, Y)))
 
         if pointDistance(Data.PLAYER_X_COORD, Data.PLAYER_Y_COORD, X, Y) < distanceAccuracy:
-            print("Found point!")
+            #print("Found point!")
             return
+        prev_error = pointDistance(Data.PLAYER_X_COORD, Data.PLAYER_Y_COORD, X, Y)
 
         new_facing_direction = ComputeTurnDegree(Data.PLAYER_X_COORD, Data.PLAYER_Y_COORD, X, Y)
 
@@ -233,7 +320,7 @@ def MoveTo(X, Y, accuracy, config=None):
 
         turnTime = (RadToDeg(directionDiff) / 360) * config["TURN_TIME_FACTOR"]
 
-        print("turntime is" + str(turnTime))
+        #print("turntime is" + str(turnTime))
 
         if math.fabs(turnTime) > config["MINIMUM_CORRECTING_TURN_TIME_MS"]:
             print("Making a correcting turn")
@@ -255,35 +342,24 @@ def MoveTo(X, Y, accuracy, config=None):
                 tc.askTurnRight(turnTime)
 
 
-def FollowPath(threadname,  path):
-    navigationActive = True
 
-    closest_point =path[0]
-    closest_point_dist = 100000000
-    index = 0
-    for i, (X,Y) in enumerate(path):
-        if pointDistance(Data.PLAYER_X_COORD, Data.PLAYER_Y_COORD, X, Y) < closest_point_dist:
-            closest_point = (X,Y)
-            closest_point_dist = pointDistance(Data.PLAYER_X_COORD, Data.PLAYER_Y_COORD, X, Y)
-            index = i
 
-    for X,Y in path[index:]:
-        while paused:
-            pass
-            #print("Movement paused, waiting....")
-            wc.stop()
-        MoveTo(X,Y, 'fine')
+def FollowPath(threadname,  inputpath):
+    p = Path(inputpath)
+    p.FindClosestPoint()
+
+    recently_paused = False
 
     while True:
-        path.reverse()
-        for X,Y in path:
-            while paused:
-                pass
-                #print("Movement paused, waiting....")
-                wc.stop()
-            MoveTo(X,Y, 'fine')
+        while paused:
+            wc.stop()
+            recently_paused = True
+        if recently_paused:
+            p.FindClosestPoint()
+        next = p.Next()
+        MoveTo(*next, 'fine')
+
     wc.stop()
-    navigationActive = False
 
 def recordMovement():
     f = open("path", "wb")
@@ -299,7 +375,8 @@ def recordMovement():
         movement_coords.append((Data.PLAYER_X_COORD, Data.PLAYER_Y_COORD))
         print(str(Data.PLAYER_X_COORD) + "," + str(Data.PLAYER_Y_COORD))
         if old_X == Data.PLAYER_X_COORD and old_Y == Data.PLAYER_Y_COORD:
-            if same == True:
+            # If we already have two points that are identical
+            if same:
                 break
             same = True
         else:
@@ -313,3 +390,9 @@ def readPath():
     f = open("path", "rb")
     movement_coords = pickle.load(f)
     return movement_coords
+
+if __name__ == "__main__":
+    thread1 = Thread(target=PR.thread_monitor, args=("Thread-1",))
+    thread1.start()
+    time.sleep(1)
+    recordMovement()

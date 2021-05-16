@@ -130,7 +130,7 @@ def get_pixel_color(screenshot, pixel_width, pixel_height):
 
 def thread_monitor(threadname):
     wincap = WindowCapture('World of Warcraft')
-    sct = mss.mss()
+    #sct = mss.mss()
     while True:
         screenshot = wincap.get_screenshot()
         #scr2 = sct.grab({"mon": 2, "top": 0, "left": 0, "width": 1432, "height": 351})
