@@ -1,11 +1,11 @@
 # PixelBot
 Basic pixel bot framework for World of Warcraft WOTLK. 
 
-Functions using two parts:
-1) Addon: Encodes key game information in colors overlaid on the UI.
-2) Python script: Screenshots the game and decodes the colors.
+Functions using two components:
+1) Addon: Encodes key game information in colors overlaid on the UI. Written in lua.
+2) Python script: Screenshots the game and decodes the colors. Acts on the information read to automate gameplay.
 
-Information can be encoded using colors as each pixel has an RGB tuple consisting of three values. Each of these values can encode [0,255] and we can thus encode a total of 256^3 unique values. 
+Information can be encoded using colors as each pixel is associated with an RGB tuple consisting of three color levels. Each of these levels can encode [0,255] and we can thus encode a total of 256^3 unique values. 
 
 Different data types are encoded as follows:
 One color can encode 24 boolean variables using the bits of the three bytes.
