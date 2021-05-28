@@ -1,7 +1,7 @@
 # PixelBot
-Basic pixel bot framework for World of Warcraft WOTLK. 
+Basic pixel botbase for World of Warcraft WOTLK. 
 
-Functions using two components:
+Functionality is split into two components:
 1) Addon: Encodes key game information in colors overlaid on the UI. Written in lua.
 2) Python script: Screenshots the game and decodes the colors. Acts on the information read to automate gameplay.
 
